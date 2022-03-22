@@ -1,28 +1,53 @@
 # Indice
 1. \- [Introduzione](1.md)
+
 	1.1. \- [Informazioni sul progetto](1.md#11---informazioni-sul-progetto)
+	
 	1.2. \- [Tensorflow 2](1.md#12---tensorflow-2)
+	
 	1.3. \- [Google Colab](1.md#11---google-colab)
+---
 2. \- [Unità di calcolo](2.md)
-  2.1. \- [Generalità](2.md#21---generalit%C3%A0)
-	2.1. \- [Central Processing Unit (CPU)](2.md#22---central-processing-unit-cpu)
-	2.2. \- [Graphics Processing Unit (GPU)](2.md#23---graphics-processing-unit-gpu)
-	2.3. \- [Tensor Processing Unit (TPU)](2.md#24---tensor-processing-unit-tpu)
+
+  	2.1. \- [Generalità](2.md#21---generalit%C3%A0)
+  
+	2.2. \- [Central Processing Unit (CPU)](2.md#22---central-processing-unit-cpu)
+	
+	2.3. \- [Graphics Processing Unit (GPU)](2.md#23---graphics-processing-unit-gpu)
+	
+	2.4. \- [Tensor Processing Unit (TPU)](2.md#24---tensor-processing-unit-tpu)
+---
 3. \- [GPU](3.md)
+
 	3.1. \- [Architettura](3.md#31---architettura)
+	
 	3.2. \- [NVIDIA CUDA](3.md#32---nvidia-cuda)
+	
 	3.3. \- [Khronos OpenCL](3.md#33---khronos-opencl)
-  3.4. \- [Fonti](3.md#34---fonti)
+	
+	3.4. \- [Fonti](3.md#34---fonti)
+---
 4. \- [TPU](4.md)
+
 	4.1. \- [Architettura](4.md#41---architettura)
-  4.2. \- [Prima generazione](4.md#42---prima-generazione)
-  4.3. \- [Seconda generazione](4.md#43---seconda-generazione)
+
+	4.2. \- [Prima generazione](4.md#42---prima-generazione)
+
+	4.3. \- [Seconda generazione](4.md#43---seconda-generazione)
+
 	4.4. \- [Cloud TPU e Edge TPU](4.md#44---cloud-tpu-e-edge-tpu)
-  4.5. \- [Fonti](4.md#45---fonti)
+
+	4.5. \- [Fonti](4.md#45---fonti)
+---
 5. \- [Machine Learning](5.md)
+
 	5.1. \- [Machine Learning](5.md#51---machine-learning)
+
 	5.2. \- [Caso di studio progetto](5.md#52---caso-di-studio-progetto)
-  5.3. \- [Fonti](5.md#53--fonti)
+
+	5.3. \- [Fonti](5.md#53--fonti)
+---
 6. \- [Conclusione](6.md)
+
 	6.1. \- [Errori](6.md#61--errori)
 
