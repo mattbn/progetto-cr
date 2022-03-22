@@ -1,0 +1,54 @@
+# 4. - TPU
+
+## 4.1. - Architettura
+La TPU comprende alcuni componenti fondamentali:
+- **Matrix Multiplier Unit** (**MXU**): unità che svolge le operazioni di moltiplicazione e addizione (multiply-and-add) dei dati in formato matriciale;
+- **Unified Buffer** (**UB**): memoria SRAM (tipicamente da qualche decina di MB) che costituisce i registri (solo su TPUv1);
+- **Activation Unit** (**AU**): unità responsabile dell'esecuzione delle funzioni di attivazione hardwired (solo su TPUv1);
+ - **Vector Processing Unit** (**VPU**): effettua operazioni vettoriali su una memoria vettoriale su chip (**Vmem**) con 32K elementi da $128 \times 32$-bit e 32 registri vettoriali (**Vregs**) 2D, contenenti $128 \times 8$ elementi a 32-bit (assente su TPUv1);
+ - **Scalar Unit**: effettua operazioni su scalari, viene usata per logiche di controllo e per il calcolo di indirizzi (assente su TPUv1);
+
+Per implementare unità di calcolo matriciale di larga scala, la MXU presenta un'architettura completamente diversa da quella di CPU e GPU, che implementa le operazioni attraverso un [array sistolico](https://en.wikipedia.org/wiki/Systolic_array), per cui è possibile leggere i dati in input una sola volta ed effettuare diverse operazioni sugli stessi (andando ipoteticamente a catalogare questo tipo di architettura come un'architettura **MISD**, anche se il fatto che i dati vengano modificati e che i essi stessi siano dei vettori rende tale classificazione non corretta).
+
+## 4.2. - Prima generazione
+
+Le TPU di prima generazione presentano una velocità di clock di 700 MHz ed un consumo di 40 W. È stata sviluppata come un acceleratore esterno in grado di entrare in uno slot hard disk SATA ed è connessa all'host tramite un PCIe 3 con una banda di 12.5 GB/s.
+Esse sono in grado di lavorare esclusivamente con interi a 8 bit, andando ad approssimare valori continui con la [quantizzazione](https://it.wikipedia.org/wiki/Quantizzazione_(elettronica)), 
+presentano MXU con 65536 ALU per multiply-and-add a 8-bit per le operazioni matriciali, UB di 24MB e la loro architettura è di tipo CISC.
+
+[](img TPU cisc)
+
+Sono state definite inoltre alcune istruzioni ad alto livello per la gestione di queste unità:
+ - **Read_Host_Memory**: lettura di dati dalla memoria;
+ - **Read_Weights**: lettura di coefficienti dalla memoria;
+ - **MatrixMultiply/Convolve**: moltiplicazione o convoluzione dei dati e dei pesi con successiva accumulazione (somma) dei risultati;
+ - **Activate**: applicazione di una funzione di attivazione;
+ - **Write_Host_Memory**: scrittura di risultati in memoria;
+
+La potenza di calcolo, considerando la numerosità delle ALU (65536) e la frequenza di lavoro (700 MHz) è pari a circa $46 \times 10^{12}$ operazioni, o 46 TOPS.
+
+## 4.3. - Seconda generazione
+La seconda generazione di TPU (TPUv2) ha migliorato l'architettura includendo due TPU core per chip e impiegando 16GB di [High Bandwidth Memory](https://en.wikipedia.org/wiki/High_Bandwidth_Memory) aumentando la velocità della memoria a circa 600 GB/s.
+
+Le MXU delle TPUv2 lavorano principalmente con numeri reali in virgola mobile a 16 bit (`bfloat16`, *"brain"* floating point, differisce da un float16 IEEE 754 poiché presenta più bit per l'esponente), sono più piccole ($128 \times 128$), ma più precise (a causa del `bfloat16`).
+Anche se le MXU lavorano con float a 16 bit, nella TPU i dati sono comunque mantenuti come float a 32 bit, infatti gli accumulatori operano con questi. 
+
+Lo stadio di attivazione è stato rimpiazzato da VPU e Scalar Unit, in modo da poter effettuare un insieme più ampio di operazioni.
+Infatti, le TPUv2 possono essere usate per l'allenamento delle reti, mentre le TPUv1 possono essere usate solo per **inferenza**, ovvero per il calcolo delle previsioni usando un modello già allenato. Questo costituisce un netto miglioramento poiché la fase di allenamento è almeno 3 volte più pesante di quella di inferenza, per cui un miglioramento in tale fase permette un miglioramento maggiore complessivamente, in accordo alla [legge di Amdahl](https://it.wikipedia.org/wiki/Legge_di_Amdahl).
+
+## 4.4. - Cloud TPU e Edge TPU
+Le TPU sono disponibili all'uso in due forme: 
+1. **Cloud TPU**, ovvero attraverso l'uso di una o più TPU (denominato **pod**) collegate tra loro presso i datacenter Google, disponibili a noleggio orario (con elevate potenze di calcolo, nell'ordine di centinaia di **TOPS** - Trillion Operations Per Second)
+2. **Edge TPU**, ovvero attraverso delle TPU progettate per essere implementate a livello periferico, con particolare attenzione verso ingombro, prestazioni e consumi (un modulo acceleratore Edge TPU è capace di effettuare 4 TOPS con 2 W di potenza ed occupa circa 150 mm$^{2}$, ma è capace di gestire solo dati a 8-bit);
+
+Le Edge TPU sono simili, in merito alle loro funzionalità, alle TPUv1 in quanto effettuano principalmente inferenza (anche se è possibile effettuare allenamenti leggeri) e lavorano con aritmetica a 8-bit, inoltre funzionano esclusivamente attraverso la API Tensorflow Lite.
+
+## 4.5 - Fonti:
+- https://en.wikipedia.org/wiki/Tensor_Processing_Unit
+- https://inst.eecs.berkeley.edu/~cs152/sp19/lectures/L20-DSA.pdf
+- https://medium.com/@antonpaquin/whats-inside-a-tpu-c013eb51973e
+- https://coral.ai/docs/edgetpu/faq/#how-is-the-edge-tpu-different-from-cloud-tpus
+- https://coral.ai/static/files/Coral-Accelerator-Module-datasheet.pdf
+- https://dl.acm.org/doi/pdf/10.1145/3360307
+- https://cloud.google.com/blog/products/ai-machine-learning/an-in-depth-look-at-googles-first-tensor-processing-unit-tpu
+- https://cloud.google.com/tpu/docs/bfloat16

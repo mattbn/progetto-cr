@@ -1,0 +1,83 @@
+# 3. - GPU
+
+## 3.1. - Architettura
+La struttura della GPU differisce da quella della CPU in quanto la CPU è specializzata nell'ottimizzazione della latenza di esecuzione delle istruzioni, mentre la GPU punta ad un maggiore **throughput**, ovvero una maggiore quantità di dati processati per unità di tempo.
+
+I principali produttori di GPU sono [NVIDIA](link) e [AMD](link), che forniscono diversi tipi di schede e API per la loro programmazione, ma nel seguito si esaminerà a grandi linee l'architettura di una tipica scheda NVIDIA.
+
+La GPU presenta un elevato numero di **Streaming Multiprocessors** (o **SM**s), ognuno con i propri componenti di base analoghi a quelli di un processore (CU, registri, pipelines, caches).
+
+Tali processori agiscono in parallelo tra loro e presentano al loro interno un (grande) numero di core ciascuno.
+Ogni core (per schede NVIDIA si parla di CUDA core) è dotato di diverse unità per svolgere diversi tipi di operazioni. Tra queste vi è:
+1. Floating Point Unit, per operazioni su numeri in virgola mobile;
+2. Integer Unit, per operazioni su interi;
+3. Logic Unit, per operazioni logiche;
+4. Move/Compare Unit, per operazioni sui registri e la memoria;
+5. Branch Unit, per la gestione dei salti;
+
+Ognuno dei core contenuti nei SM esegue le stesse istruzioni su, però, dati diversi (in accordo all'architettura **SIMD** su cui è basata la GPU). 
+Per quanto riguarda la memoria, ogni SM presenta una cache L1 di qualche decina di KB, di cui una parte è dedicata alla condivisione di dati fra i thread (**Shared Memory**). Tale memoria presenta una banda elevata (un/qualche TB/s).
+
+Sono inoltre presenti una memoria RAM dedicata all'intera GPU (**Graphics DRAM, GDDR**), più veloce della memoria centrale del resto del sistema, di dimensione inferiore (fino ad una decina di GB, attualmente), accessibile anche dall'esterno ed un bus di memoria con una larga banda (nell'ordine delle centinaia di GB/s) che consente di servire i dati alle molteplici ALU.
+Tutti i tipi di memoria (inclusi i registri) sono dotati di codici a correzione di errore (ECC) per conservare la veridicità dei dati.
+
+[](link immagine GPU arch)
+
+## 3.2. - NVIDIA CUDA
+Come scritto in precedenza, NVIDIA mette a disposizione degli utenti una API (Application Programming Interface), con relativa toolchain, per lo sviluppo e l'esecuzione di programmi esclusivamente su GPU NVIDIA. Tale API è chiamata CUDA (Compute Unified Device Architecture) che costituisce un'estensione del linguaggio C (attraverso un compilatore dedicato, **nvcc**), infatti tale estensione presenta:
+- Nuove regole di sintassi e variabili built-in;
+- Restrizioni allo standard ANSI C;
+- Librerie;
+
+Prima di esaminare tali modifiche, è opportuno considerare un po' di terminologia:
+- **Device**: la GPU (dispositivo);
+- **Host**: il resto del sistema;
+- **Kernel**: funzioni C da eseguire sul device;
+- **Warp**: gruppo di 32 thread;
+- **Thread block (o block)**: array tridimensionale di threads;
+- **Grid**: array tridimensionale di blocks;
+
+Novità di CUDA:
+- Configuratore di esecuzione `<<< ... >>>`: contiene da 2 a 4 valori che specificano rispettivamente la dimensione della grid, la dimensione di ogni block, il numero di bytes allocati in shared memory per block e lo stream associato al kernel a cui si riferisce il configuratore;
+- Specificatore di spazio di esecuzione della funzione: può essere di diversi tipi:
+	- `__device__`: la funzione è eseguita e richiamabile solo dal device;
+	- `__global__`: la funzione è un kernel, quindi è eseguita sul device, richiamabile sia da device e host (ma deve avere tipo di ritorno `void` e specificare una configurazione di esecuzione;
+	- `__host__`: la funzione è eseguita e richiamabile solo dall'host;
+- Specificatore dello spazio di variabile: può essere di diversi tipi:
+	- `__device__`: la variabile risiede nella memoria del device;
+	- `__constant__`: la variabile è costante e, se usata insieme a `__device__`, risiede sulla memoria del device;
+	- `__shared__`: la variabile risiede nella shared memory del block ed è accessibile solo dai thread del block;
+	- `__managed__`: la variabile può essere utilizzata da device e host;
+	- `__restrict__`: usato per i puntatori, è una funzionalità utile per evitare ottimizzazioni che potrebbero avere un effetto contrario rispetto a quanto sperato, più info [qui](https://it.wikipedia.org/wiki/Restrict).
+- Variabili built-in: prevalentemente vari identificatori, utili a capire all'interno del programma quale unità sta eseguendo la funzione:
+	- `gridDim`: di tipo `dim3` (insieme di 3 interi senza segno inizializzati a 1), specifica la dimensione della grid;
+	- `blockIdx`: di tipo `uint3` (insieme di 3 interi senza segno), specifica l'indice del block corrente;
+	- `blockDim`: di tipo `dim3`, specifica la dimensione del block;
+	- `threadIdx`: di tipo `uint3`, specifica l'indice del thread nel block corrente;
+	- `warpSize`: di tipo `int`, specifica la dimensione del warp;
+- Restrizioni: 
+	- Non è possibile usare la ricorsione nel codice del device;
+	- Non si possono utilizzare i puntatori a funzione nel codice del device;
+- Funzioni di libreria:
+	- Funzioni per gestione della memoria (`cudaMalloc`, `cudaFree`): allocazione e deallocazione di memoria sul device (analoghe a `malloc` e `free`);
+	- Funzioni matematiche: `sin`, `cos`, `tan`, ... ;
+	- Funzioni per operazioni atomiche;
+
+Quando un programma CUDA lancia un kernel, i block della grid specificata sono enumerati e distribuiti ai SM disponibili. I thread di un block vengono eseguiti in parallelo, insieme ad altri block, su un singolo SM. 
+Per l'elevato grado di parallelismo dei SM è stata sviluppata un'architettura unica denominata **SIMT** (*Single-Instruction, Multiple-Thread*).
+Il multiprocessore lavora con i warp, in generale, ed i thread che ne fanno parte, pur presentando lo stesso codice, hanno i propri Program Counter (Instruction Address Counter) e registri (e questo è anche il motivo per cui SIMT è diversa da SIMD, in quanto SIMD riguarda la parallelizzazione a livello di istruzione, ovvero l'esecuzione della stessa istruzione su dati diversi, mentre SIMT ne è un'estensione, in cui diversi thread eseguono le stesse istruzioni su diversi dati).
+
+Per architetture più vecchie (fino all'architettura Volta), i warp usavano un program counter singolo per tutti i thread al loro interno, mentre con le nuove è presente lo *Scheduling Indipendente del Thread* (Independent Thread Scheduling), che permette di mantenere lo stato di esecuzione per thread che permette, grazie al program counter separato, di risolvere le dipendenze tra i thread (in cui ad esempio uno aspetta i risultati dell'altro).
+
+CUDA rappresenta la API più influente nel campo del calcolo su GPU, ma non è l'unica alternativa.
+
+## 3.3. - Khronos OpenCL
+OpenCL è l'alternativa di [Khronos](https://www.khronos.org) per il calcolo su GPU, una API multipiattaforma (come altre più famose di Khronos, come OpenGL o Vulkan) che, però, è meno utilizzata rispetto a CUDA e costituisce una delle alternative su schede non prodotte da NVIDIA.
+In questo progetto non verrà trattato in quanto OpenCL è diverso rispetto a CUDA poiché quest'ultimo costituisce anche la specifica dell'architettura del device, oltre che l'estensione del linguaggio, mentre OpenCL è esclusivamente una API per lo sviluppo di programmi di calcolo eterogeneo.
+
+## 3.4. - Fonti
+- https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
+- https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
+- https://en.wikipedia.org/wiki/Single_instruction,_multiple_threads
+- https://cs.nyu.edu/manycores/cuda_many_cores.pdf
+- https://homes.luddy.indiana.edu/achauhan/Teaching/B649/2011-Fall/StudentPresns/gpu-arch.pdf
